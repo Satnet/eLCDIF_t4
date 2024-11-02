@@ -64,17 +64,26 @@
 
 
 enum BUS_WIDTH {
-        BUS_8BIT = 0x1,
-        BUS_16BIT = 0x0,
-        BUS_18BIT = 0x2,
-        BUS_24BIT = 0x3
-    };
+    BUS_8BIT = 0x1,
+    BUS_16BIT = 0x0,
+    BUS_18BIT = 0x2,
+    BUS_24BIT = 0x3
+};
+
 enum WORD_LENGTH{
-        WORD_8BIT = 0x1,
-        WORD_16BIT = 0x0,
-        WORD_18BIT = 0x2,
-        WORD_24BIT = 0x3
-    };
+    WORD_8BIT = 0x1,
+    WORD_16BIT = 0x0,
+    WORD_18BIT = 0x2,
+    WORD_24BIT = 0x3
+};
+
+enum COLOR_DEPTH {
+  COLOR_DEPTH_RAW8,
+  COLOR_DEPTH_RGB565,
+  COLOR_DEPTH_RGB666,
+  COLOR_DEPTH_XRGB8888,
+  COLOR_DEPTH_RGB888
+};
 
 typedef struct {
   uint32_t height;
@@ -94,7 +103,7 @@ typedef struct {
 
 class eLCDIF_t4 {
     public:
-    void begin(BUS_WIDTH busWidth, WORD_LENGTH colorDepth, eLCDIF_t4_config config);
+    void begin(eLCDIF_t4_config config, BUS_WIDTH busWidth, WORD_LENGTH wordLength, COLOR_DEPTH colorDepth);
     void setCurrentBufferAddress(void*buffer);
     void setNextBufferAddress(void*buffer);
     void runLCD();
@@ -105,8 +114,8 @@ class eLCDIF_t4 {
     private:
     eLCDIF_t4_config internal_config;
     void setVideoClock(int num, int den);
-    void initLCDPins();
-    void initLCDIF(eLCDIF_t4_config config, int busWidth, int colorDepth);
+    void initLCDPins(COLOR_DEPTH colorDepth);
+    void initLCDIF(eLCDIF_t4_config config, BUS_WIDTH busWidth, WORD_LENGTH wordLength, COLOR_DEPTH colorDepth);
 
     static void LCDIF_ISR();
     void lcdifCallback();

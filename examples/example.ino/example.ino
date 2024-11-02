@@ -4,7 +4,7 @@ eLCDIF_t4_config lcd_config = {480, 8, 8, 4, 800, 8, 8, 4, 25, 24, 0, 0};
 
 void setup() {
   // put your setup code here, to run once:
-  lcd.begin(BUS_24BIT, WORD_24BIT, lcd_config);
+  lcd.begin(lcd_config, BUS_16BIT, WORD_16BIT, COLOR_DEPTH_RGB565);
 
 }
 

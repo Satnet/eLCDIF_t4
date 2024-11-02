@@ -7,26 +7,26 @@
 
 */
 
-FLASHMEM void eLCDIF_t4::begin(BUS_WIDTH busWidth, WORD_LENGTH colorDepth, eLCDIF_t4_config config){
+FLASHMEM void eLCDIF_t4::begin(eLCDIF_t4_config config, BUS_WIDTH busWidth, WORD_LENGTH wordLength, COLOR_DEPTH colorDepth) {
   internal_config = config;
-  initLCDPins();
+  initLCDPins(colorDepth);
   setVideoClock(4*config.clk_num, config.clk_den);
-  initLCDIF(config, busWidth, colorDepth);
+  initLCDIF(config, busWidth, wordLength, colorDepth);
 };
 
-FASTRUN void eLCDIF_t4::setCurrentBufferAddress(void*buffer){
+FASTRUN void eLCDIF_t4::setCurrentBufferAddress(void*buffer) {
   LCDIF_CUR_BUF = (uint32_t)buffer;
 };
 
-FASTRUN void eLCDIF_t4::setNextBufferAddress(void*buffer){
+FASTRUN void eLCDIF_t4::setNextBufferAddress(void*buffer) {
   LCDIF_NEXT_BUF = (uint32_t)buffer;
 };
 
-FLASHMEM void eLCDIF_t4::onCompleteCallback(CBF callback){
+FLASHMEM void eLCDIF_t4::onCompleteCallback(CBF callback) {
   _callback = callback;
 };
 
-FLASHMEM void eLCDIF_t4::runLCD(){
+FLASHMEM void eLCDIF_t4::runLCD() {
   attachInterruptVector(IRQ_LCDIF, LCDIF_ISR);
   NVIC_SET_PRIORITY(IRQ_LCDIF, 128);
   NVIC_ENABLE_IRQ(IRQ_LCDIF);
@@ -111,106 +111,170 @@ FLASHMEM void eLCDIF_t4::setVideoClock(int num, int den){
   Serial.println("done.");
 
 };
-FLASHMEM void eLCDIF_t4::initLCDPins(){
-  //Configure pads to ALT0 - eLCDIF signals
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_00 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_01 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_02 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_03 = 0;
+
+FLASHMEM void eLCDIF_t4::initLCDPins(COLOR_DEPTH colorDepth) {
+  // Always initialize control pins (DCLK, DE, H_SYNC, V_SYNC)
+  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_00 = 0; // DCLK
+  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_01 = 0; // DE
+  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_02 = 0; // H_SYNC
+  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_03 = 0; // V_SYNC
+
+  // Set drive strength for control pins
+  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_00 = 0xFF; // DCLK
+  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_01 = 0xFF; // DE
+  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_02 = 0xFF; // H_SYNC
+  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_03 = 0xFF; // V_SYNC
+
+  // Initialize data pins based on color depth
+  // Common data pins for all configurations (RAW8 and higher)
   IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_04 = 0;
   IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_05 = 0;
   IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_06 = 0;
   IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_07 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_08 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_09 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_10 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_11 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_12 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_13 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_14 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_15 = 0;
 
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_00 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_01 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_02 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_03 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_04 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_05 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_06 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_07 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_08 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_09 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_10 = 0;
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_11 = 0;
+  // Additional pins for 16-bit (RGB565)
+  if (colorDepth == COLOR_DEPTH_RGB565) {
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_08 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_09 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_10 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_11 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_12 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_13 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_14 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_15 = 0;
+  }
 
-  // configure the LCD pins as outputs, high stength drive
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_00 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_01 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_02 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_03 = 0xFF;
+  // Additional pins for 18-bit (RGB666)
+  if (colorDepth == COLOR_DEPTH_RGB666) {
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_08 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_09 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_10 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_11 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_12 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_13 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_14 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_15 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_00 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_01 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_02 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_03 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_04 = 0;
+  }
+
+  // Additional pins for 24-bit (RGB888 and XRGB8888)
+  if (colorDepth == COLOR_DEPTH_RGB888 || colorDepth == COLOR_DEPTH_XRGB8888) {
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_08 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_09 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_10 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_11 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_12 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_13 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_14 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_15 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_00 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_01 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_02 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_03 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_04 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_05 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_06 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_07 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_08 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_09 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_10 = 0;
+    IOMUXC_SW_MUX_CTL_PAD_GPIO_B1_11 = 0;
+  }
+
+  // Set drive strength for data pins
   IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_04 = 0xFF;
   IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_05 = 0xFF;
   IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_06 = 0xFF;
   IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_07 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_08 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_09 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_10 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_11 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_12 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_13 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_14 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_15 = 0xFF;
 
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_00 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_01 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_02 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_03 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_04 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_05 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_06 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_07 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_08 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_09 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_10 = 0xFF;
-  IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_11 = 0xFF;
-};
+  if (colorDepth >= COLOR_DEPTH_RGB565) {
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_08 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_09 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_10 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_11 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_12 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_13 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_14 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B0_15 = 0xFF;
+  }
 
-FLASHMEM void eLCDIF_t4::initLCDIF(eLCDIF_t4_config config, int busWidth, int colorDepth){
+  if (colorDepth >= COLOR_DEPTH_RGB666) {
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_00 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_01 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_02 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_03 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_04 = 0xFF;
+  }
+
+  if (colorDepth >= COLOR_DEPTH_RGB888) {
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_05 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_06 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_07 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_08 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_09 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_10 = 0xFF;
+    IOMUXC_SW_PAD_CTL_PAD_GPIO_B1_11 = 0xFF;
+  }
+}
+
+FLASHMEM void eLCDIF_t4::initLCDIF(eLCDIF_t4_config config, BUS_WIDTH busWidth, WORD_LENGTH wordLength, COLOR_DEPTH colorDepth) {
   Serial.print("Resetting LCDIF...");
   // reset LCDIF
-  // ungate clock and wait for it to clear
   LCDIF_CTRL_CLR = LCDIF_CTRL_CLKGATE;
   while (LCDIF_CTRL & LCDIF_CTRL_CLKGATE);
   Serial.print("poking reset...");
-  /* trigger reset, wait for clock gate to enable - this is what the manual says to do...
-   * but it doesn't work; the clock gate never re-activates, at least not in the register
-   * so the best we can do is to make sure the reset flag is reflected and assume it's done the job
-   */
   LCDIF_CTRL_SET = LCDIF_CTRL_SFTRST;
   while (!(LCDIF_CTRL & LCDIF_CTRL_SFTRST));
   
   Serial.print("re-enabling clock...");
-  // clear reset and ungate clock again
   LCDIF_CTRL_CLR = LCDIF_CTRL_SFTRST | LCDIF_CTRL_CLKGATE;
   Serial.println("done.");
 
   Serial.println("Initializing LCDIF registers...");
-  // 8 bits in, using LUT
-  LCDIF_CTRL = LCDIF_CTRL_WORD_LENGTH(colorDepth) | LCDIF_CTRL_LCD_DATABUS_WIDTH(busWidth) | LCDIF_CTRL_DOTCLK_MODE | LCDIF_CTRL_BYPASS_COUNT | LCDIF_CTRL_MASTER;
-  // recover on underflow = garbage will be displayed if memory is too slow, but at least it keeps running instead of aborting
-  LCDIF_CTRL1 = LCDIF_CTRL1_RECOVER_ON_UNDERFLOW | LCDIF_CTRL1_BYTE_PACKING_FORMAT(0x07);
+  
+  // Set up the control and control1 values based on color depth and word length
+  uint32_t ctrlWordLength = LCDIF_CTRL_WORD_LENGTH(wordLength);
+  uint32_t ctrl1BytePackingFormat = 0x0F;  // Default value for byte packing
+
+  switch (colorDepth) {
+    case COLOR_DEPTH_RAW8:
+      ctrl1BytePackingFormat = LCDIF_CTRL1_BYTE_PACKING_FORMAT(0x0F);
+      break;
+    case COLOR_DEPTH_RGB565:
+      ctrl1BytePackingFormat = LCDIF_CTRL1_BYTE_PACKING_FORMAT(0x0F);
+      break;
+    case COLOR_DEPTH_RGB666:
+      ctrl1BytePackingFormat = LCDIF_CTRL1_BYTE_PACKING_FORMAT(0x07);
+      break;
+    case COLOR_DEPTH_XRGB8888:
+      ctrl1BytePackingFormat = LCDIF_CTRL1_BYTE_PACKING_FORMAT(0x07);
+      break;
+    case COLOR_DEPTH_RGB888:
+      ctrl1BytePackingFormat = LCDIF_CTRL1_BYTE_PACKING_FORMAT(0x0F);
+      break;
+    default:
+      Serial.println("Unsupported color depth.");
+      return;
+  }
+
+  LCDIF_CTRL = ctrlWordLength | LCDIF_CTRL_LCD_DATABUS_WIDTH(busWidth) | LCDIF_CTRL_DOTCLK_MODE | LCDIF_CTRL_BYPASS_COUNT | LCDIF_CTRL_MASTER;
+  LCDIF_CTRL1 = LCDIF_CTRL1_RECOVER_ON_UNDERFLOW | ctrl1BytePackingFormat;
+
   LCDIF_CTRL2 = LCDIF_CTRL2_OUTSTANDING_REQ(4) | LCDIF_CTRL2_BURST_LEN_8(0);
   LCDIF_TRANSFER_COUNT = LCDIF_TRANSFER_COUNT_V_COUNT(config.height) | LCDIF_TRANSFER_COUNT_H_COUNT(config.width);
-  // set vsync and hsync signal polarity (depends on mode/resolution), vsync length
+  
   LCDIF_VDCTRL0 = LCDIF_VDCTRL0_ENABLE_PRESENT | LCDIF_VDCTRL0_VSYNC_PERIOD_UNIT | LCDIF_VDCTRL0_VSYNC_PULSE_WIDTH_UNIT | LCDIF_VDCTRL0_VSYNC_PULSE_WIDTH(config.vsw) | config.vpolarity | config.hpolarity;
-  // total lines
-  LCDIF_VDCTRL1 = config.height+config.vfp+config.vsw+config.vbp;
-  // hsync length, line = width+HBP+HSW+HFP
-  LCDIF_VDCTRL2 = LCDIF_VDCTRL2_HSYNC_PULSE_WIDTH(config.hsw) | LCDIF_VDCTRL2_HSYNC_PERIOD(config.width+config.hfp+config.hsw+config.hbp);
-  // horizontal wait = back porch + sync, vertical wait = back porch + sync
-  LCDIF_VDCTRL3 = LCDIF_VDCTRL3_HORIZONTAL_WAIT_CNT(config.hsw+config.hbp) | LCDIF_VDCTRL3_VERTICAL_WAIT_CNT(config.vsw+config.vbp);
+  LCDIF_VDCTRL1 = config.height + config.vfp + config.vsw + config.vbp;
+  LCDIF_VDCTRL2 = LCDIF_VDCTRL2_HSYNC_PULSE_WIDTH(config.hsw) | LCDIF_VDCTRL2_HSYNC_PERIOD(config.width + config.hfp + config.hsw + config.hbp);
+  LCDIF_VDCTRL3 = LCDIF_VDCTRL3_HORIZONTAL_WAIT_CNT(config.hsw + config.hbp) | LCDIF_VDCTRL3_VERTICAL_WAIT_CNT(config.vsw + config.vbp);
   LCDIF_VDCTRL4 = LCDIF_VDCTRL4_SYNC_SIGNALS_ON | LCDIF_VDCTRL4_DOTCLK_H_VALID_DATA_CNT(config.width);
-  Serial.printf("LCDIF_CTRL: 0x%x\nLCDIF_CTRL1: 0x%x\nLCDIF_TRANSFER_COUNT: 0x%x\nLCDIF_VDCTRL0: 0x%x\nLCDIF_VDCTRL1: 0x%x\nLCDIF_VDCTRL2: 0x%x\nLCDIF_VDCTRL3: 0x%x\nLCDIF_VDCTRL4: 0x%x\n", LCDIF_CTRL, LCDIF_CTRL1,LCDIF_TRANSFER_COUNT, LCDIF_VDCTRL0, LCDIF_VDCTRL1, LCDIF_VDCTRL2, LCDIF_VDCTRL3, LCDIF_VDCTRL4);
+  
+  Serial.printf("LCDIF_CTRL: 0x%x\nLCDIF_CTRL1: 0x%x\nLCDIF_TRANSFER_COUNT: 0x%x\nLCDIF_VDCTRL0: 0x%x\nLCDIF_VDCTRL1: 0x%x\nLCDIF_VDCTRL2: 0x%x\nLCDIF_VDCTRL3: 0x%x\nLCDIF_VDCTRL4: 0x%x\n", 
+                LCDIF_CTRL, LCDIF_CTRL1, LCDIF_TRANSFER_COUNT, LCDIF_VDCTRL0, LCDIF_VDCTRL1, LCDIF_VDCTRL2, LCDIF_VDCTRL3, LCDIF_VDCTRL4);
   Serial.println("done.");
 };
 

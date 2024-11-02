@@ -23,7 +23,7 @@ void setup() {
     Serial.printf("lcdBuffer1 address: 0x%x \n", lcdBuffer1);
 
     // Start the eLCFIF and set the current and next buffers (same source for this test)
-    lcd.begin(BUS_24BIT, WORD_24BIT, lcd_config);
+    lcd.begin(lcd_config, BUS_16BIT, WORD_16BIT, COLOR_DEPTH_RGB565);
     lcd.setCurrentBufferAddress(lcdBuffer1);
     lcd.setNextBufferAddress(lcdBuffer1);
   
